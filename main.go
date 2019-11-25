@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -41,7 +42,8 @@ var opts struct {
 	PagerDutyScheduleEntryTimeframe    time.Duration `long:"pagerduty.schedule.entry-timeframe"      env:"PAGERDUTY_SCHEDULE_ENTRY_TIMEFRAME"           description:"PagerDuty timeframe for fetching schedule entries (time.Duration)" default:"72h"`
 	PagerDutyScheduleEntryTimeFormat   string        `long:"pagerduty.schedule.entry-timeformat"           env:"PAGERDUTY_SCHEDULE_ENTRY_TIMEFORMAT"          description:"PagerDuty schedule entry time format (label)" default:"Mon, 02 Jan 15:04 MST"`
 	PagerDutyIncidentTimeFormat        string        `long:"pagerduty.incident.timeformat"                      env:"PAGERDUTY_INCIDENT_TIMEFORMAT"                description:"PagerDuty incident time format (label)" default:"Mon, 02 Jan 15:04 MST"`
-	PagerDutyDisableCollectors		   []string      `long:"pagerduty.disable-collectors" description:"Collector names to disable checking."                env:"PAGERDUTY_DISABLE_COLLECTORS"`
+	PagerDutyDisableCollectors		   []string      `long:"pagerduty.disable-collectors" short:"d"          env:"PAGERDUTY_DISABLE_COLLECTORS"     description:"Collector names to disable checking."`
+	PagerDutyTeamListOpt			   []string      `long:"pagerduty.team-listopt"                 env:"PAGERDUTY_TEAM_LISTOPT"            description:"Passes team ID as a list option when applicable."`
 }
 
 func main() {
@@ -95,7 +97,22 @@ func initMetricCollector() {
 	var collectorName string
 	collectorGeneralList = map[string]*CollectorGeneral{}
 
-	if !contains(opts.PagerDutyDisableCollectors, "team") {
+	//fmt.Println(opts.PagerDutyDisableCollectors[0])
+	//if strings.EqualFold(opts.PagerDutyDisableCollectors[0], "team") {
+	//	fmt.Println("contains")
+	//}
+	//
+	//fmt.Println(opts.PagerDutyDisableCollectors)
+	//if !contains(opts.PagerDutyDisableCollectors, "team") {
+	//	fmt.Println("disabled")
+	//}
+
+	var disabled_collectors []string
+	if len(opts.PagerDutyDisableCollectors) == 1 {
+		disabled_collectors = strings.Split(opts.PagerDutyDisableCollectors[0], ",")
+	}
+
+	if !contains(disabled_collectors, "team") {
 		collectorName = "Team"
 		if opts.ScrapeTime.Seconds() > 0 {
 			collectorGeneralList[collectorName] = NewCollectorGeneral(collectorName, &MetricsCollectorTeam{})
@@ -105,27 +122,27 @@ func initMetricCollector() {
 		}
 	}
 
-	if !contains(opts.PagerDutyDisableCollectors, "user") {
+	if !contains(disabled_collectors, "user") {
 		collectorName = "User"
 		if opts.ScrapeTime.Seconds() > 0 {
-			collectorGeneralList[collectorName] = NewCollectorGeneral(collectorName, &MetricsCollectorUser{})
+			collectorGeneralList[collectorName] = NewCollectorGeneral(collectorName, &MetricsCollectorUser{teamListOpt: opts.PagerDutyTeamListOpt})
 			collectorGeneralList[collectorName].Run(opts.ScrapeTime)
 		} else {
 			Logger.Infof("collector[%s]: disabled", collectorName)
 		}
 	}
 
-	if !contains(opts.PagerDutyDisableCollectors, "service") {
+	if !contains(disabled_collectors, "service") {
 		collectorName = "Service"
 		if opts.ScrapeTime.Seconds() > 0 {
-			collectorGeneralList[collectorName] = NewCollectorGeneral(collectorName, &MetricsCollectorService{})
+			collectorGeneralList[collectorName] = NewCollectorGeneral(collectorName, &MetricsCollectorService{teamListOpt: opts.PagerDutyTeamListOpt})
 			collectorGeneralList[collectorName].Run(opts.ScrapeTime)
 		} else {
 			Logger.Infof("collector[%s]: disabled", collectorName)
 		}
 	}
 
-	if !contains(opts.PagerDutyDisableCollectors, "schedule") {
+	if !contains(disabled_collectors, "schedule") {
 		collectorName = "Schedule"
 		if opts.ScrapeTime.Seconds() > 0 {
 			collectorGeneralList[collectorName] = NewCollectorGeneral(collectorName, &MetricsCollectorSchedule{})
@@ -135,17 +152,17 @@ func initMetricCollector() {
 		}
 	}
 
-	if !contains(opts.PagerDutyDisableCollectors, "maintenancewindow") {
+	if !contains(disabled_collectors, "maintenancewindow") {
 		collectorName = "MaintenanceWindow"
 		if opts.ScrapeTime.Seconds() > 0 {
-			collectorGeneralList[collectorName] = NewCollectorGeneral(collectorName, &MetricsCollectorMaintenanceWindow{})
+			collectorGeneralList[collectorName] = NewCollectorGeneral(collectorName, &MetricsCollectorMaintenanceWindow{teamListOpt: opts.PagerDutyTeamListOpt})
 			collectorGeneralList[collectorName].Run(opts.ScrapeTime)
 		} else {
 			Logger.Infof("collector[%s]: disabled", collectorName)
 		}
 	}
 
-	if !contains(opts.PagerDutyDisableCollectors, "oncall") {
+	if !contains(disabled_collectors, "oncall") {
 		collectorName = "OnCall"
 		if opts.ScrapeTimeLive.Seconds() > 0 {
 			collectorGeneralList[collectorName] = NewCollectorGeneral(collectorName, &MetricsCollectorOncall{})
@@ -155,10 +172,10 @@ func initMetricCollector() {
 		}
 	}
 
-	if !contains(opts.PagerDutyDisableCollectors, "incident") {
+	if !contains(disabled_collectors, "incident") {
 		collectorName = "Incident"
 		if opts.ScrapeTimeLive.Seconds() > 0 {
-			collectorGeneralList[collectorName] = NewCollectorGeneral(collectorName, &MetricsCollectorIncident{})
+			collectorGeneralList[collectorName] = NewCollectorGeneral(collectorName, &MetricsCollectorIncident{teamListOpt: opts.PagerDutyTeamListOpt})
 			collectorGeneralList[collectorName].Run(opts.ScrapeTimeLive)
 		} else {
 			Logger.Infof("collector[%s]: disabled", collectorName)

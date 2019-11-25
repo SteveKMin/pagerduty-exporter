@@ -2,6 +2,7 @@ package main
 
 import (
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -33,4 +34,13 @@ func uintToString(v uint) string {
 
 func timeToFloat64(v time.Time) float64 {
 	return float64(v.Unix())
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if strings.EqualFold(a, e) {
+			return true
+		}
+	}
+	return false
 }
